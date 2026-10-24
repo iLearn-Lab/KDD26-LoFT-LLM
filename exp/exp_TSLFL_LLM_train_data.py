@@ -23,6 +23,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import layers.FinancialLLMProcess_utils as LLMutils
 import json
 import random
+from release_config import sft_runs, sft_output
 
 warnings.filterwarnings('ignore')
 
@@ -193,19 +194,14 @@ class Exp_TSLFL_LLM_Train_Data(Exp_Basic):
 
 
     def test(self, setting, test=0):
-        checkpoints = [
-            "TSLFL_Forcast_ProductAmt_30_9_iTransformer_TSLFL_ftM_sl30_ll0_pl9_dm512_nh8_el2_dl1_df512_fc3_ebtimeF_dtTrue_Exp_0",
-            "TSLFL_Forcast_ProductAmt_30_10_iTransformer_TSLFL_ftM_sl30_ll0_pl10_dm512_nh8_el2_dl1_df512_fc3_ebtimeF_dtTrue_Exp_0",]
-        
         prompts_list = []
         trues_list = []
-        self.args.pred_len = 8
-        for path in checkpoints:
-            self.args.pred_len += 1
-            self.args.model_id = 'ProductAmt_' + str(self.args.seq_len) + '_' + str(self.args.pred_len)
+        for pred_len, model_id, path in sft_runs(self.args):
+            self.args.pred_len = pred_len
+            self.args.model_id = model_id
             self.init()
             _, test_loader = self._get_data(flag='train')
-            self.model.load_state_dict(torch.load(os.path.join('./checkpoints/' + path, 'checkpoint.pth'), map_location='cuda:0'))
+            self.model.load_state_dict(torch.load(os.path.join(self.args.checkpoints, path, 'checkpoint.pth'), map_location='cuda:0'))
 
             self.model.eval()
             self.fremodel.eval()
@@ -234,7 +230,7 @@ class Exp_TSLFL_LLM_Train_Data(Exp_Basic):
                     print(len(prompts_list), len(trues_list))
 
         
-        self.generate_json_data(prompts_list, trues_list, "Financial_LLM_train_data.json")
+        self.generate_json_data(prompts_list, trues_list, sft_output("fundar"))
 
 
 

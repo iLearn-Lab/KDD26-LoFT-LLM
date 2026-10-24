@@ -22,6 +22,7 @@ from models.PLFM import FreModel
 import layers.FinancialLLMProcess_utils as LLMutils
 from transformers import AutoTokenizer
 from peft import AutoPeftModelForCausalLM
+from release_config import llm_paths
 
 warnings.filterwarnings('ignore')
 
@@ -37,9 +38,9 @@ class Exp_TSLFL_LLM(Exp_Basic):
         self.fremodel.load_state_dict(torch.load(self.path, map_location='cuda:0'), strict=False)
 
         # 原始基础模型路径
-        base_model_name = "Qwen3/Qwen3-8B"
+        base_model_name, peft_model_path = llm_paths("fundar")
         # 使用QLoRA微调后保存的路径
-        peft_model_path = "Qwen3/Financial_Finetune/v2-20250711-171550/checkpoint-743"
+        # Adapter path is supplied by the release profile.
         # 加载Tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(base_model_name, padding_side='left')
         # 加载QLoRA模型
@@ -79,6 +80,8 @@ class Exp_TSLFL_LLM(Exp_Basic):
         dec_inp = torch.cat([batch_y[:, :self.args.label_len, :], dec_inp], dim=1).float().to(self.device)
         # encoder - decoder
 
+        time1 = time.time()
+
         def _run_model():
             outputs = self.model(batch_x, spec_x, None, dec_inp, None)
 
@@ -94,6 +97,8 @@ class Exp_TSLFL_LLM(Exp_Basic):
         
         low_freq_pred, high_freq_pred = outputs
         pred = low_freq_pred + high_freq_pred
+
+        time2 = time.time()
 
         # LLM 处理过程
         x_combin = torch.cat((batch_x, batch_x_semantic), dim=2)
@@ -112,8 +117,8 @@ class Exp_TSLFL_LLM(Exp_Basic):
 
         prompts = LLMutils.make_prompts_from_fields(field_x, field_y, batch_x_time, batch_y_time, self.args.pred_len,
                                         field_high_y, field_low_y)
-        print(prompts[0])
-        print(None.shape)
+        # print(prompts[0])
+        # print(None.shape)
 
         print(f"Generated {len(prompts)} prompts for LLM processing.")
 
@@ -124,6 +129,10 @@ class Exp_TSLFL_LLM(Exp_Basic):
 
         batch_y = batch_y[:, -self.args.pred_len:, :].to(self.device)
         # outputs = outputs[:, -self.args.pred_len:, :]
+
+        time3 = time.time()
+        print(time3-time2, time2-time1, time3-time1)
+        print(outputs_refined.shape)
 
         return outputs_refined, batch_y, pred
 
@@ -149,7 +158,7 @@ class Exp_TSLFL_LLM(Exp_Basic):
                 self.args.distil,
                 self.args.des, 0)
             print('loading model')
-            self.model.load_state_dict(torch.load(os.path.join('./checkpoints/' + setting, 'checkpoint.pth'), map_location='cuda:0'))
+            self.model.load_state_dict(torch.load(os.path.join(self.args.checkpoints, setting, 'checkpoint.pth'), map_location='cuda:0'))
 
         preds = []
         trues = []

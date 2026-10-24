@@ -24,12 +24,12 @@ def RMSE(pred, true):
 
 
 def MAPE(pred, true):
-    mask = true > 1e-3
+    mask = true > 1e-4
     if np.sum(mask) == 0: return 0
     return np.mean(np.abs((true[mask] - pred[mask]) / true[mask]))
 
 def MAPE2(pred, true):
-    mask = true > 1e-3
+    mask = true > 1e-4
     if np.sum(mask) == 0: return 0
     return np.mean(np.abs((true[mask] - pred[mask]) / true[mask]))
 

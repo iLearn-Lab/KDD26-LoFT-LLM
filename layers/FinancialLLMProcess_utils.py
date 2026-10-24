@@ -177,7 +177,7 @@ def convert_string_to_float_list(string_list, pred_len):
     try:
         float_numbers = [float(num) for num in numbers]
         # 截断或补齐
-        if len(float_numbers) != pred_len: print(string_list)
+        # if len(float_numbers) != pred_len: print(string_list)
         if len(float_numbers) < pred_len:
             float_numbers += [-1000.0] * (pred_len - len(float_numbers))
         else:
@@ -297,39 +297,81 @@ def regroup_predictions_filtered(apply_amt_refined, redeem_amt_refined, fund_ids
     return out_tensor
 
 
-# def regroup_predictions_filtered(apply_amt_refined, redeem_amt_refined, fund_ids, feature_names, P):
-#     """
-#     只保留feature_names中以apply_amt_或redeem_amt_开头的列，按fund_id顺序组合预测结果
-#     返回: apply_tensor, redeem_tensor, shape [B, P, C1]
-#     """
-#     # 找到所有apply_amt/redeem_amt相关的列及其fund_id
-#     apply_cols = []
-#     redeem_cols = []
-#     apply_fund_ids = []
-#     redeem_fund_ids = []
-#     for i, name in enumerate(feature_names):
-#         if name.startswith('apply_amt_'):
-#             apply_cols.append(i)
-#             apply_fund_ids.append(name.split('_')[-1])
-#         if name.startswith('redeem_amt_'):
-#             redeem_cols.append(i)
-#             redeem_fund_ids.append(name.split('_')[-1])
 
-#     B = len(fund_ids) // len(set(fund_ids))
-#     C1 = len(apply_cols)  # apply和redeem的fund_id顺序应一致
-#     apply_tensor = torch.zeros(B, P, C1)
-#     redeem_tensor = torch.zeros(B, P, C1)
 
-#     group_per_batch = len(fund_ids) // B
-#     for b in range(B):
-#         for g in range(group_per_batch):
-#             idx = b * group_per_batch + g
-#             fund_id = fund_ids[idx]
-#             # 找到该fund_id在apply/redeem中的列
-#             if fund_id in apply_fund_ids:
-#                 c = apply_fund_ids.index(fund_id)
-#                 apply_tensor[b, :, c] = torch.tensor(apply_amt_refined[idx])
-#             if fund_id in redeem_fund_ids:
-#                 c = redeem_fund_ids.index(fund_id)
-#                 redeem_tensor[b, :, c] = torch.tensor(redeem_amt_refined[idx])
-#     return apply_tensor, redeem_tensor, apply_cols, redeem_cols
+def LLaMA(tokenizer, model, prompts, pred_len, apply_amt_org, redeem_amt_org, batch_size=16):
+    """
+    与 Qwen(...) 同签名的 LLaMA 推理函数。
+    约定：
+      - prompts: 每个元素是纯文本 prompt（LLaMA v1 通常无 chat 模板）
+      - tokenizer: 已设置好 pad_token（若无则外部应设为 eos_token）
+      - 输出：两个 list[list[float]]，与 Qwen(...) 一致
+    """
+    import math
+    import numpy as np
+    import torch
+    from tqdm import tqdm
+
+    # 更稳妥地获取设备（部分 HF 模型没有 model.device 属性）
+    device = next(model.parameters()).device
+
+    apply_amt_refined = []
+    redeem_amt_refined = []
+
+    num_batches = math.ceil(len(prompts) / batch_size)
+
+    for batch_idx in tqdm(range(num_batches), desc="LLaMA Generating"):
+        batch_prompts = prompts[batch_idx * batch_size : (batch_idx + 1) * batch_size]
+
+        # LLaMA v1：直接用纯文本（不套 chat template）
+        texts = list(batch_prompts)
+
+        # 编码并推理
+        model_inputs = tokenizer(
+            texts,
+            return_tensors="pt",
+            padding=True,
+            truncation=True
+        ).to(device)
+
+        with torch.no_grad():
+            generated_ids = model.generate(
+                **model_inputs,
+                max_new_tokens=256,
+                do_sample=False,  # 与你原先默认一致（贪心）
+                eos_token_id=(tokenizer.eos_token_id if tokenizer.eos_token_id is not None else None),
+                pad_token_id=(tokenizer.pad_token_id if tokenizer.pad_token_id is not None else tokenizer.eos_token_id)
+            )
+
+        # 解码与解析（去掉输入部分，只保留新增 token）
+        seq_len = model_inputs.input_ids.shape[1]
+        for i in range(len(batch_prompts)):
+            output_ids = generated_ids[i][seq_len:].tolist()
+            content = tokenizer.decode(output_ids, skip_special_tokens=True).strip("\n")
+            lines = content.strip().split('\n')
+
+            if len(lines) >= 2:
+                apply_amt = convert_string_to_float_list(lines[0], pred_len)
+                redeem_amt = convert_string_to_float_list(lines[1], pred_len)
+            else:
+                print(f"Warning: Unexpected output format for prompt {batch_idx * batch_size + i}. Using default values.")
+                apply_amt = [-1000.0] * pred_len
+                redeem_amt = [-1000.0] * pred_len
+
+            # 与原值进行阈值回退（保持与你的 Qwen 版本一致）
+            j = batch_idx * batch_size + i
+            a_org = apply_amt_org[j].cpu().numpy()
+            r_org = redeem_amt_org[j].cpu().numpy()
+            apply_amt_np = np.array(apply_amt, dtype=np.float32)
+            redeem_amt_np = np.array(redeem_amt, dtype=np.float32)
+
+            for k in range(apply_amt_np.shape[0]):
+                if apply_amt_np[k] != 0 and abs(apply_amt_np[k] - a_org[k]) > 0.1:
+                    apply_amt_np[k] = a_org[k]
+                if redeem_amt_np[k] != 0 and abs(redeem_amt_np[k] - r_org[k]) > 0.1:
+                    redeem_amt_np[k] = r_org[k]
+
+            apply_amt_refined.append(apply_amt_np.tolist())
+            redeem_amt_refined.append(redeem_amt_np.tolist())
+
+    return apply_amt_refined, redeem_amt_refined
