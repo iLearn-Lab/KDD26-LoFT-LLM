@@ -94,7 +94,7 @@ class Exp_Frequency(Exp_Basic):
                     # Low-pass filtering
                     spec_1 = torch.fft.rfft(batch_y, dim=1)
                     spec_1[:,-int(self.mask * (self.pred_len / 2 + 1)):,:] = 0
-                    batch_y = torch.fft.irfft(spec_1, dim=1)
+                    batch_y = torch.fft.irfft(spec_1, n=self.pred_len, dim=1)
 
                 batch_y = torch.fft.rfft(batch_y, dim=1, norm='forward').permute(0, 2, 1)             # x: [B, C, N, P] -> [B, C, N, P // 2 + 1]
                 # batch_y = batch_y.reshape(batch_y.shape[0], batch_y.shape[1], -1, 1).squeeze(-1)       
@@ -147,7 +147,7 @@ class Exp_Frequency(Exp_Basic):
                     # Low-pass filtering
                     spec_1 = torch.fft.rfft(batch_y, dim=1)
                     spec_1[:,-int(self.mask * (self.pred_len / 2 + 1)):,:] = 0
-                    batch_y = torch.fft.irfft(spec_1, dim=1)
+                    batch_y = torch.fft.irfft(spec_1, n=self.pred_len, dim=1)
 
                 # Non-overlapping Patching
                 batch_y = torch.fft.rfft(batch_y, dim=1, norm='forward').permute(0, 2, 1)

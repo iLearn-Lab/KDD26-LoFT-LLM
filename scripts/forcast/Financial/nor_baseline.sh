@@ -1,8 +1,8 @@
-export CUDA_VISIBLE_DEVICES=4
+export CUDA_VISIBLE_DEVICES=0
 
-# model_name=iTransformer
+model_name=iTransformer
 # model_name=FITS
-model_name=TimesNet
+# model_name=TimesNet
 # model_name=PatchTST
 # model_name=DLinear
 # model_name=FreTS
@@ -36,9 +36,10 @@ for seed in ${seeds[@]}; do
       --c_out 88 \
       --des 'Exp' \
       --itr 1 \
-      --d_model 512 \
-      --d_ff 1024 \
-      --seed $seed
+      --d_model 256 \
+      --d_ff 256 \
+      --seed $seed \
+      --batch_size 1
   done
 done
 

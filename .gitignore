@@ -166,3 +166,9 @@ result_anomaly_detection.txt
 scripts/augmentation/
 run_anylearn.py
 environment.txt
+# LoFT-LLM generated artifacts
+/adapters/
+/outputs/
+/Qwen3/
+/huggyllama/
+*.safetensors
