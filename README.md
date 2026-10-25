@@ -21,7 +21,7 @@ The framework uses three training stages:
 
 The training and inference pipeline is shown below:
 
-![LoFT-LLM training and inference pipeline](https://arxiv.org/html/2512.20002v3/Training_Process.png)
+![LoFT-LLM training and inference pipeline](pic/Training_Process.png)
 
 *Figure 1 from [LoFT-LLM](https://arxiv.org/html/2512.20002v3), by Jiacheng You et al. ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)).*
 

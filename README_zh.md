@@ -21,7 +21,7 @@ LoFT-LLM 面向训练数据有限的金融与能源时间序列预测，将低�
 
 训练与推理流程如下：
 
-![LoFT-LLM 训练与推理流程](https://arxiv.org/html/2512.20002v3/Training_Process.png)
+![LoFT-LLM 训练与推理流程](pic/Training_Process.png)
 
 *原图为 Jiacheng You 等人的 [LoFT-LLM 论文](https://arxiv.org/html/2512.20002v3)图 1，采用 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 许可。*
 
