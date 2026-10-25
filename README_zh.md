@@ -1,9 +1,48 @@
 # LoFT-LLM
 
 论文 **LoFT-LLM: Low-Frequency Time-Series Forecasting with Large Language Models** 的开源代码。
-[论文](https://arxiv.org/abs/2512.20002v3) · [English](README.md)
+[论文](https://arxiv.org/abs/2512.20002v3) · [English](README.md) · [方法概览](#方法概览) · [快速开始](#安装) · [引用](#引用)
 
-LoFT-LLM 将低频预测、残差学习与领域大模型校准结合起来。训练包含三个阶段：PLFM 低频学习、固定 PLFM 后的 iTransformer 残差学习，以及 Qwen3-8B 的 QLoRA 监督微调。
+LoFT-LLM 面向训练数据有限的金融与能源时间序列预测，将低频趋势预测、高频残差学习与大模型校准结合起来，利用辅助信息和领域知识修正数值预测。
+
+## 研究动机
+
+历史数据有限时，高频噪声容易掩盖稳定的时间变化规律。同时，用户行为、气象条件等辅助变量包含有价值的领域信息，仅将其表示为数值特征可能难以充分利用这些信息。LoFT-LLM 通过频率感知学习与结构化自然语言提示词，将时序规律和领域语义结合起来。
+
+## 方法概览
+
+训练分为三个阶段：
+
+| 阶段 | 模块 | 核心思路 |
+| --- | --- | --- |
+| 1. 低频学习 | 分块低频预测模块 PLFM | 对重叠的历史序列片段进行 FFT，以独立 MLP 建模频谱实部与虚部，并使用低通目标和频率对齐损失 FALoss 进行监督。 |
+| 2. 残差学习 | iTransformer | 固定 PLFM，基于高通滤波后的历史序列学习残差，将趋势与残差预测相加，并使用 FALoss 训练。 |
+| 3. 语义校准 | Qwen3-8B + QLoRA | 将历史序列、数值预测和辅助信息组织为领域提示词，通过监督微调，使大模型输出校准后的数值预测。 |
+
+推理时，训练好的模块按以下流程协同工作：
+
+```mermaid
+flowchart LR
+    X["历史序列"] --> P["PLFM"]
+    X --> R["高通滤波 + iTransformer"]
+    P --> L["低频趋势预测"]
+    R --> H["高频残差预测"]
+    X --> S["结构化领域提示词"]
+    L --> S
+    H --> S
+    A["辅助信息与领域知识"] --> S
+    S --> Q["Qwen3-8B + QLoRA 适配器"]
+    Q --> Y["校准后的预测"]
+```
+
+## 实验任务概览
+
+| 数据集 | 应用领域 | 采样频率 | 预测目标 |
+| --- | --- | --- | --- |
+| FundAR | 金融 | 每日 | 基金申购与赎回流量 |
+| Solar | 能源 | 每小时 | 太阳能发电功率 |
+
+[论文](https://arxiv.org/html/2512.20002v3) 在完整训练数据和少样本条件下进行预测对比，并通过消融实验和低频学习分析评估各模块。下文提供两个领域的配置与运行方法。
 
 ## 安装
 
@@ -67,6 +106,20 @@ python train_qlora.py --config configs/fundar.json --check-data
 ```
 
 第一条运行配置与监督标签的单元检查；第二条在监督样本导出后检查 JSON 数据格式，无需加载大模型。
+
+## 引用
+
+如果本项目对你的研究有帮助，请引用：
+
+```bibtex
+@article{you2025loftllm,
+  title={LoFT-LLM: Low-Frequency Time-Series Forecasting with Large Language Models},
+  author={You, Jiacheng and Yang, Jingcheng and Xie, Yuhang and Wu, Zhongxuan and Li, Xiucheng and Li, Feng and Wang, Pengjie and Xu, Jian and Zheng, Bo and Chen, Xinyang},
+  journal={arXiv preprint arXiv:2512.20002},
+  year={2025},
+  url={https://arxiv.org/abs/2512.20002}
+}
+```
 
 ## 致谢与许可
 

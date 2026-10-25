@@ -1,9 +1,48 @@
 # LoFT-LLM
 
 Code for **LoFT-LLM: Low-Frequency Time-Series Forecasting with Large Language Models**.
-[Paper](https://arxiv.org/abs/2512.20002v3) · [中文使用说明](README_zh.md)
+[Paper](https://arxiv.org/abs/2512.20002v3) · [中文说明](README_zh.md) · [Method](#method-overview) · [Getting started](#installation) · [Citation](#citation)
 
-LoFT-LLM combines low-frequency prediction with residual learning and domain-aware LLM calibration. The three training stages are PLFM low-frequency learning, iTransformer residual learning with a frozen PLFM, and QLoRA supervised fine-tuning of Qwen3-8B.
+LoFT-LLM is a time-series forecasting framework for financial and energy applications with limited training data. It combines low-frequency trend prediction, high-frequency residual learning, and LLM calibration guided by auxiliary context and domain knowledge.
+
+## Motivation
+
+With limited historical data, high-frequency noise can obscure stable temporal patterns. Auxiliary variables, such as user activity or weather conditions, also carry useful context that numerical representations may underuse. LoFT-LLM addresses both challenges through frequency-aware learning and structured natural-language prompts.
+
+## Method overview
+
+The framework uses three training stages:
+
+| Stage | Module | Approach |
+| --- | --- | --- |
+| 1. Low-frequency learning | Patch Low-Frequency Forecasting Module (PLFM) | Apply FFT to overlapping historical patches and model real and imaginary components with separate MLPs. Use low-pass targets and Frequency Alignment Loss (FALoss) for supervision. |
+| 2. Residual learning | iTransformer | Freeze PLFM and learn residuals from high-pass-filtered history. Add trend and residual forecasts and train with FALoss. |
+| 3. Semantic calibration | Qwen3-8B with QLoRA | Build domain prompts from history, numerical forecasts and auxiliary context. Fine-tune the LLM to generate calibrated numerical predictions. |
+
+At inference time, the trained modules work together as follows:
+
+```mermaid
+flowchart LR
+    X["Historical series"] --> P["PLFM"]
+    X --> R["High-pass filter + iTransformer"]
+    P --> L["Low-frequency forecast"]
+    R --> H["Residual forecast"]
+    X --> S["Structured domain prompt"]
+    L --> S
+    H --> S
+    A["Auxiliary context and domain knowledge"] --> S
+    S --> Q["Qwen3-8B + QLoRA adapter"]
+    Q --> Y["Calibrated forecast"]
+```
+
+## Tasks and evaluation
+
+| Dataset | Domain | Sampling | Forecast target |
+| --- | --- | --- | --- |
+| FundAR | Finance | Daily | Fund subscription and redemption flows |
+| Solar | Energy | Hourly | Solar power generation |
+
+The [paper](https://arxiv.org/html/2512.20002v3) evaluates full-data and few-shot forecasting, component ablations, and low-frequency learning. The configurations below cover both domains.
 
 ## Installation
 
@@ -58,6 +97,20 @@ Supervised examples are written to `outputs/<domain>/h<horizon>/` and adapters t
 python -m unittest discover -s tests -v
 # Validate supervised examples after export:
 python train_qlora.py --config configs/fundar.json --check-data
+```
+
+## Citation
+
+If you use LoFT-LLM in your research, please cite:
+
+```bibtex
+@article{you2025loftllm,
+  title={LoFT-LLM: Low-Frequency Time-Series Forecasting with Large Language Models},
+  author={You, Jiacheng and Yang, Jingcheng and Xie, Yuhang and Wu, Zhongxuan and Li, Xiucheng and Li, Feng and Wang, Pengjie and Xu, Jian and Zheng, Bo and Chen, Xinyang},
+  journal={arXiv preprint arXiv:2512.20002},
+  year={2025},
+  url={https://arxiv.org/abs/2512.20002}
+}
 ```
 
 ## Acknowledgements and license
