@@ -19,21 +19,11 @@ LoFT-LLM 面向训练数据有限的金融与能源时间序列预测，将低�
 | 2. 残差学习 | iTransformer | 固定 PLFM，基于高通滤波后的历史序列学习残差，将趋势与残差预测相加，并使用 FALoss 训练。 |
 | 3. 语义校准 | Qwen3-8B + QLoRA | 将历史序列、数值预测和辅助信息组织为领域提示词，通过监督微调，使大模型输出校准后的数值预测。 |
 
-推理时，训练好的模块按以下流程协同工作：
+训练与推理流程如下：
 
-```mermaid
-flowchart LR
-    X["历史序列"] --> P["PLFM"]
-    X --> R["高通滤波 + iTransformer"]
-    P --> L["低频趋势预测"]
-    R --> H["高频残差预测"]
-    X --> S["结构化领域提示词"]
-    L --> S
-    H --> S
-    A["辅助信息与领域知识"] --> S
-    S --> Q["Qwen3-8B + QLoRA 适配器"]
-    Q --> Y["校准后的预测"]
-```
+![LoFT-LLM 训练与推理流程](https://arxiv.org/html/2512.20002v3/Training_Process.png)
+
+*原图为 Jiacheng You 等人的 [LoFT-LLM 论文](https://arxiv.org/html/2512.20002v3)图 1，采用 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 许可。*
 
 ## 实验任务概览
 

@@ -19,21 +19,11 @@ The framework uses three training stages:
 | 2. Residual learning | iTransformer | Freeze PLFM and learn residuals from high-pass-filtered history. Add trend and residual forecasts and train with FALoss. |
 | 3. Semantic calibration | Qwen3-8B with QLoRA | Build domain prompts from history, numerical forecasts and auxiliary context. Fine-tune the LLM to generate calibrated numerical predictions. |
 
-At inference time, the trained modules work together as follows:
+The training and inference pipeline is shown below:
 
-```mermaid
-flowchart LR
-    X["Historical series"] --> P["PLFM"]
-    X --> R["High-pass filter + iTransformer"]
-    P --> L["Low-frequency forecast"]
-    R --> H["Residual forecast"]
-    X --> S["Structured domain prompt"]
-    L --> S
-    H --> S
-    A["Auxiliary context and domain knowledge"] --> S
-    S --> Q["Qwen3-8B + QLoRA adapter"]
-    Q --> Y["Calibrated forecast"]
-```
+![LoFT-LLM training and inference pipeline](https://arxiv.org/html/2512.20002v3/Training_Process.png)
+
+*Figure 1 from [LoFT-LLM](https://arxiv.org/html/2512.20002v3), by Jiacheng You et al. ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)).*
 
 ## Tasks and evaluation
 
